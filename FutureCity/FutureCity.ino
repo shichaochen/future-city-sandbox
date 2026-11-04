@@ -5,12 +5,9 @@
 //   WS2812B 灯带数据线 -> GPIO 18（串联 330Ω 电阻），灯带独立 5V 供电并与 ESP32 共地
 //   雾化器继电器 -> GPIO 26（高电平触发；若是低电平触发模块，把 RELAY_ON 改成 LOW）
 //   风力发电机 MOSFET -> GPIO 27（PWM 调速）
-// 灯带分段（同一条 80 灯灯带的逻辑分段）：
-//   1段：0-59 号灯（60 灯，轨道灯带 / 列车流水灯）
-//   2段：60-64 号灯（5 灯，霓虹呼吸灯）
-//   3段：65-69 号灯（5 灯，霓虹呼吸灯）
-//   4段：70-74 号灯（5 灯，霓虹呼吸灯）
-//   5段：75-79 号灯（5 灯，霓虹呼吸灯）
+// 灯带分段（同一条灯带的逻辑分段，灯数由 SEG1_LEDS / SEG_LEN 决定）：
+//   1段：0 到 SEG1_LEDS-1 号灯（轨道灯带 / 列车流水灯）
+//   2-5段：每段 SEG_LEN 灯（霓虹呼吸灯），依次排在 1 段之后
 // 手机连接：连入 WiFi “FutureCity”，密码 future123，浏览器打开 192.168.4.1
 
 #include <WiFi.h>
@@ -18,7 +15,9 @@
 #include <FastLED.h>
 
 #define LED_PIN 18
-#define NUM_LEDS 80
+#define SEG1_LEDS 60   // 1段灯数（轨道灯带 / 列车流水灯）
+#define SEG_LEN 5      // 2-5段每段灯数（霓虹呼吸灯）
+#define NUM_LEDS (SEG1_LEDS + 4 * SEG_LEN)  // 灯带总灯数，改上面两个常量即可
 #define HUM_PIN 26
 #define WIND_PIN 27
 #define RELAY_ON HIGH
@@ -45,7 +44,7 @@ int trainPos = 0;
 unsigned long lastTrainMove = 0;
 unsigned long lastFrame = 0;
 
-int segStart(int n) { return 60 + (n - 2) * 5; }  // n = 2..5
+int segStart(int n) { return SEG1_LEDS + (n - 2) * SEG_LEN; }  // n = 2..5
 
 void applyMode(int m) {
   demoMode = m;
@@ -79,39 +78,39 @@ void render() {
     fill_solid(leds, NUM_LEDS, CRGB::Black);
     return;
   }
-  // ---- 1段（60灯）----
+  // ---- 1段----
   if (seg1Mode == 0) {
-    fill_solid(leds, 60, CRGB::Black);
+    fill_solid(leds, SEG1_LEDS, CRGB::Black);
   } else if (seg1Mode == 1) {
-    fill_solid(leds, 60, CRGB(255, 180, 100));  // 暖白常亮
+    fill_solid(leds, SEG1_LEDS, CRGB(255, 180, 100));  // 暖白常亮
   } else if (seg1Mode == 2) {
     // 列车流水灯：亮点带拖尾，模拟列车飞驰
     unsigned long interval = 110 - trainSpeed * 10;  // 速度1-10 -> 100-10ms
     if (millis() - lastTrainMove >= interval) {
       lastTrainMove = millis();
-      trainPos = (trainPos + 1) % 60;
+      trainPos = (trainPos + 1) % SEG1_LEDS;
     }
-    fill_solid(leds, 60, CRGB::Black);
+    fill_solid(leds, SEG1_LEDS, CRGB::Black);
     for (int k = 0; k < 9; k++) {
-      int idx = (trainPos - k + 60) % 60;
+      int idx = (trainPos - k + SEG1_LEDS) % SEG1_LEDS;
       leds[idx] = CHSV(160, 180, 255 - k * 28);
     }
     leds[trainPos] = CRGB(255, 255, 255);  // 车头白光
   } else if (seg1Mode == 3) {
     uint8_t hue = (uint8_t)(millis() / 60);
-    fill_rainbow(leds, 60, hue, 4);
+    fill_rainbow(leds, SEG1_LEDS, hue, 4);
   }
   // ---- 2-5段（每段5灯，霓虹呼吸灯）----
   bool fast = (demoMode == 2);
   for (int j = 0; j < 4; j++) {
     int start = segStart(j + 2);
     if (!segOn[j]) {
-      fill_solid(&leds[start], 5, CRGB::Black);
+      fill_solid(&leds[start], SEG_LEN, CRGB::Black);
     } else {
       uint8_t hue = segHue[j];
       if (demoMode == 3) hue = (uint8_t)(millis() / 60 + j * 40);  // 梦幻霓虹：颜色流动
       CRGB c = CHSV(hue, 255, breathFactor(fast));
-      fill_solid(&leds[start], 5, c);
+      fill_solid(&leds[start], SEG_LEN, c);
     }
   }
 }
@@ -215,7 +214,7 @@ label{color:#c7d5f0;font-size:14px}
 <input type="range" id="speed" min="1" max="10" value="5" onchange="api('cmd=speed&v='+this.value)">
 </div>
 <div class="card">
-<h2>💡 轨道灯带 · 1段（60灯）</h2>
+<h2>💡 轨道灯带 · 1段</h2>
 <div class="row">
 <button class="btn seg1btn" data-v="0" onclick="api('cmd=seg1&v=0')">关闭</button>
 <button class="btn seg1btn" data-v="1" onclick="api('cmd=seg1&v=1')">常亮</button>
@@ -224,7 +223,7 @@ label{color:#c7d5f0;font-size:14px}
 </div>
 </div>
 <div class="card">
-<h2>✨ 霓虹灯带 · 2–5段（每段5灯呼吸灯）</h2>
+<h2>✨ 霓虹灯带 · 2–5段</h2>
 <div id="segs"></div>
 </div>
 <div class="card">
