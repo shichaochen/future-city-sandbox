@@ -15,3 +15,4 @@
 手机连入 WiFi `FutureCity`（密码 `future123`），浏览器打开 `192.168.4.1`，即可打开深色霓虹风控制界面。
 
 <img width="1920" height="1280" alt="image" src="https://github.com/user-attachments/assets/bb5c0da5-3667-4fb0-9ea5-20efd4aecc46" />
+https://github.com/shichaochen/future-city-sandbox/blob/main/%E8%83%B6%E5%9B%8A%E5%88%97%E8%BD%A6.png
