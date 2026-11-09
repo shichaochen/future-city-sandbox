@@ -17,3 +17,7 @@
 <img width="1920" height="1280" alt="image" src="https://github.com/user-attachments/assets/bb5c0da5-3667-4fb0-9ea5-20efd4aecc46" />
 
 <img width="1920" height="1280" alt="image" src="https://github.com/shichaochen/future-city-sandbox/blob/main/%E8%83%B6%E5%9B%8A%E5%88%97%E8%BD%A6.png" />
+
+<img width="414" height="896" alt="未来城市沙盘APP2" src="https://github.com/user-attachments/assets/46213525-3ee7-45ec-84be-9aa1592103bd" />
+
+<img width="414" height="896" alt="未来城市沙盘APP1" src="https://github.com/user-attachments/assets/9454c2b8-0c6b-4878-a9aa-068be04a86b0" />
