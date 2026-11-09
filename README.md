@@ -16,4 +16,4 @@
 
 <img width="1920" height="1280" alt="image" src="https://github.com/user-attachments/assets/bb5c0da5-3667-4fb0-9ea5-20efd4aecc46" />
 
-<img width="1920" height="1280" alt="image" src="[https://github.com/user-attachments/assets/bb5c0da5-3667-4fb0-9ea5-20efd4aecc46](https://github.com/shichaochen/future-city-sandbox/blob/main/%E8%83%B6%E5%9B%8A%E5%88%97%E8%BD%A6.png)" />
+<img width="1920" height="1280" alt="image" src="https://github.com/shichaochen/future-city-sandbox/blob/main/%E8%83%B6%E5%9B%8A%E5%88%97%E8%BD%A6.png" />
