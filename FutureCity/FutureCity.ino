@@ -8,10 +8,12 @@
 // 灯带分段（同一条灯带的逻辑分段，灯数由 SEG1_LEDS / SEG_LEN 决定）：
 //   1段：0 到 SEG1_LEDS-1 号灯（轨道灯带 / 列车流水灯）
 //   2-5段：每段 SEG_LEN 灯（霓虹呼吸灯），依次排在 1 段之后
-// 手机连接：连入 WiFi “FutureCity”，密码 future123，浏览器打开 192.168.4.1
+// 手机连接：连入 WiFi “FutureCity”，密码 future123 后自动弹出控制页面（Captive Portal）；
+// 若手机没弹，浏览器手动打开 192.168.4.1
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <FastLED.h>
 
 #define LED_PIN 18
@@ -27,6 +29,7 @@ const char* AP_PASS = "future123";
 
 CRGB leds[NUM_LEDS];
 WebServer server(80);
+DNSServer dnsServer;  // 俘获门户：把所有域名解析到本机 IP
 
 // ---------- 状态 ----------
 bool master = true;        // 系统总控
@@ -118,7 +121,11 @@ void render() {
 void applyOutputs() {
   digitalWrite(HUM_PIN, (master && hum) ? RELAY_ON : !RELAY_ON);
   int duty = (master && wind) ? windSpeed * 255 / 100 : 0;
-  ledcWrite(0, duty);
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(WIND_PIN, duty);  // Core 3.x：按引脚写占空比
+#else
+  ledcWrite(0, duty);  // Core 2.x：按通道写占空比
+#endif
 }
 
 String stateJson() {
@@ -145,7 +152,7 @@ void handleApi() {
     master = (v == 1);
     if (master) applyMode(1);
   } else if (cmd == "train") {
-    seg1Mode = (v == 1) ? 2 : 1; demoMode = 0;
+    seg1Mode = (v == 1) ? 2 : 0; demoMode = 0;  // 停止 = 1段关闭（不再常亮）
   } else if (cmd == "speed") {
     trainSpeed = constrain(v, 1, 10); demoMode = 0;
   } else if (cmd == "seg1") {
@@ -315,26 +322,38 @@ void setup() {
   Serial.begin(115200);
   pinMode(HUM_PIN, OUTPUT);
   digitalWrite(HUM_PIN, !RELAY_ON);
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(WIND_PIN, 5000, 8);  // Core 3.x：ledcSetup/ledcAttachPin 已删除
+  ledcWrite(WIND_PIN, 0);
+#else
   ledcSetup(0, 5000, 8);
   ledcAttachPin(WIND_PIN, 0);
   ledcWrite(0, 0);
+#endif
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(180);
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASS);
+  dnsServer.start(53, "*", WiFi.softAPIP());  // 所有 DNS 查询都指向本机，触发手机俘获门户弹窗
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
   server.on("/", handleRoot);
   server.on("/state", handleState);
   server.on("/api", handleApi);
+  // 未知路径（含手机联网检测地址）一律重定向回控制页，触发俘获门户弹窗
+  server.onNotFound([]() {
+    server.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+    server.send(302, "text/plain", "");
+  });
   server.begin();
   applyMode(1);  // 上电默认：未来夜景
 }
 
 void loop() {
   server.handleClient();
+  dnsServer.processNextRequest();
   if (millis() - lastFrame >= 20) {
     lastFrame = millis();
     render();
